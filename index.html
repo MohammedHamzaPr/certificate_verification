@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>التحقق من اعتماد الشهادة | Programming & Security</title>
+  <meta name="description" content="موقع رسمي للتحقق من صحة واعتماد شهادات Programming & Security.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0a0e16;
+      --bg-soft:#0f1521;
+      --panel:#121a28;
+      --panel-soft:#151f2f;
+      --panel-line:#1f2c3f;
+      --cyan:#3dd6f5;
+      --cyan-dim:#1c4452;
+      --gold:#e8b339;
+      --text:#c9d3e0;
+      --text-bright:#eef2f7;
+      --text-dim:#6c7a8e;
+      --red:#e25c5c;
+      --red-soft:rgba(226,92,92,.11);
+      --green:#4fc97a;
+      --green-soft:rgba(79,201,122,.11);
+      --radius:16px;
+      --mono:'JetBrains Mono', monospace;
+      --sans:'IBM Plex Sans Arabic', sans-serif;
+    }
+
+    *{
+      box-sizing:border-box;
+      margin:0;
+      padding:0;
+    }
+
+    html{
+      scroll-behavior:smooth;
+    }
+
+    body{
+      min-height:100vh;
+      background:var(--bg);
+      color:var(--text);
+      font-family:var(--sans);
+      line-height:1.7;
+      overflow-x:hidden;
+    }
+
+    button,
+    input{
+      font:inherit;
+    }
+
+    button{
+      border:0;
+    }
+
+    ::selection{
+      background:var(--cyan);
+      color:#04141a;
+    }
+
+    .noise{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:1;
+      background-image:
+        radial-gradient(circle at 18% 18%, rgba(61,214,245,.06), transparent 38%),
+        radial-gradient(circle at 85% 78%, rgba(232,179,57,.05), transparent 42%);
+    }
+
+    .scanlines{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:2;
+      opacity:.025;
+      background:repeating-linear-gradient(
+        0deg,
+        #fff 0,
+        transparent 1px,
+        transparent 3px
+      );
+    }
+
+    .page-grid{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      z-index:0;
+      background-image:
+        linear-gradient(rgba(61,214,245,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(61,214,245,.04) 1px, transparent 1px);
+      background-size:46px 46px;
+      mask-image:radial-gradient(ellipse 75% 65% at 50% 30%, black 25%, transparent 80%);
+    }
+
+    .container{
+      width:min(1100px, calc(100% - 40px));
+      margin-inline:auto;
+    }
+
+    nav{
+      position:fixed;
+      top:0;
+      right:0;
+      left:0;
+      z-index:50;
+      backdrop-filter:blur(14px);
+      background:rgba(10,14,22,.74);
+      border-bottom:1px solid var(--panel-line);
+    }
+
+    .nav-inner{
+      min-height:66px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:20px;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:11px;
+      text-decoration:none;
+      color:inherit;
+    }
+
+    .brand img{
+      width:36px;
+      height:36px;
+      border-radius:9px;
+      object-fit:cover;
+      border:1px solid var(--panel-line);
+    }
+
+    .brand-name{
+      color:var(--text-bright);
+      font-size:15px;
+      font-weight:700;
+    }
+
+    .brand-name span{
+      color:var(--cyan);
+      font-family:var(--mono);
+    }
+
+    .nav-status{
+      display:flex;
+      align-items:center;
+      gap:9px;
+      color:var(--text-dim);
+      font-family:var(--mono);
+      font-size:12px;
+    }
+
+    .status-dot{
+      width:8px;
+      height:8px;
+      border-radius:50%;
+      background:var(--gold);
+      box-shadow:0 0 12px rgba(232,179,57,.6);
+    }
+
+    .status-dot.ready{
+      background:var(--green);
+      box-shadow:0 0 12px rgba(79,201,122,.65);
+    }
+
+    .status-dot.error{
+      background:var(--red);
+      box-shadow:0 0 12px rgba(226,92,92,.65);
+    }
+
+    main{
+      position:relative;
+      z-index:3;
+      min-height:100vh;
+      padding:135px 0 60px;
+    }
+
+    .hero{
+      text-align:center;
+      max-width:780px;
+      margin:0 auto 42px;
+    }
+
+    .shield-wrap{
+      position:relative;
+      width:126px;
+      height:126px;
+      margin:0 auto 24px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    .shield-wrap img{
+      width:104px;
+      height:104px;
+      border-radius:50%;
+      object-fit:cover;
+      filter:drop-shadow(0 0 28px rgba(61,214,245,.22));
+    }
+
+    .shield-ring{
+      position:absolute;
+      inset:0;
+      border-radius:50%;
+      border:1px solid var(--cyan-dim);
+      animation:spin 14s linear infinite;
+    }
+
+    .shield-ring::before{
+      content:'';
+      position:absolute;
+      top:-2px;
+      left:50%;
+      width:7px;
+      height:7px;
+      background:var(--cyan);
+      border-radius:50%;
+      transform:translateX(-50%);
+      box-shadow:0 0 12px var(--cyan);
+    }
+
+    @keyframes spin{
+      to{transform:rotate(360deg);}
+    }
+
+    .eyebrow{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      gap:9px;
+      color:var(--cyan);
+      font-family:var(--mono);
+      font-size:12.5px;
+      letter-spacing:.4px;
+      margin-bottom:13px;
+    }
+
+    .eyebrow::before{
+      content:'$';
+      color:var(--gold);
+    }
+
+    h1{
+      color:var(--text-bright);
+      font-size:clamp(32px, 6vw, 56px);
+      line-height:1.25;
+      margin-bottom:16px;
+    }
+
+    h1 span{
+      color:var(--cyan);
+    }
+
+    .lead{
+      color:var(--text-dim);
+      font-size:clamp(15px, 2vw, 18px);
+      max-width:650px;
+      margin-inline:auto;
+    }
+
+    .verify-card{
+      max-width:760px;
+      margin-inline:auto;
+      background:linear-gradient(180deg, rgba(18,26,40,.96), rgba(15,21,33,.96));
+      border:1px solid var(--panel-line);
+      border-radius:22px;
+      overflow:hidden;
+      box-shadow:0 28px 80px -34px rgba(0,0,0,.85);
+    }
+
+    .terminal-bar{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:13px 17px;
+      border-bottom:1px solid var(--panel-line);
+      background:rgba(255,255,255,.018);
+    }
+
+    .terminal-bar > span{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+    }
+
+    .terminal-bar > span:nth-child(1){background:var(--red);}
+    .terminal-bar > span:nth-child(2){background:var(--gold);}
+    .terminal-bar > span:nth-child(3){background:var(--green);}
+
+    .terminal-title{
+      margin-right:auto;
+      color:var(--text-dim);
+      font-family:var(--mono);
+      font-size:11px;
+      direction:ltr;
+    }
+
+    .card-body{
+      padding:34px;
+    }
+
+    .form-label{
+      display:block;
+      color:var(--text-bright);
+      font-size:15px;
+      font-weight:600;
+      margin-bottom:10px;
+    }
+
+    .input-group{
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:11px;
+    }
+
+    .certificate-input{
+      width:100%;
+      min-height:56px;
+      padding:0 18px;
+      background:var(--bg);
+      color:var(--text-bright);
+      border:1px solid var(--panel-line);
+      border-radius:11px;
+      outline:none;
+      font-family:var(--mono);
+      font-size:15px;
+      direction:ltr;
+      text-align:left;
+      transition:border-color .2s, box-shadow .2s;
+    }
+
+    .certificate-input::placeholder{
+      color:#465468;
+    }
+
+    .certificate-input:focus{
+      border-color:var(--cyan);
+      box-shadow:0 0 0 4px rgba(61,214,245,.08);
+    }
+
+    .verify-btn{
+      min-height:56px;
+      padding:0 27px;
+      border-radius:11px;
+      background:var(--cyan);
+      color:#04141a;
+      font-weight:700;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:9px;
+      transition:transform .15s, box-shadow .15s, opacity .15s;
+      white-space:nowrap;
+    }
+
+    .verify-btn:hover{
+      transform:translateY(-2px);
+      box-shadow:0 10px 28px rgba(61,214,245,.23);
+    }
+
+    .verify-btn:disabled{
+      cursor:not-allowed;
+      opacity:.58;
+      transform:none;
+      box-shadow:none;
+    }
+
+    .hint{
+      color:var(--text-dim);
+      font-size:12.5px;
+      margin-top:10px;
+    }
+
+    .hint code{
+      color:var(--gold);
+      font-family:var(--mono);
+      direction:ltr;
+      display:inline-block;
+    }
+
+    .loading-box{
+      display:none;
+      margin-top:25px;
+      padding:20px;
+      border:1px solid var(--panel-line);
+      border-radius:14px;
+      text-align:center;
+      color:var(--text-dim);
+    }
+
+    .spinner{
+      width:25px;
+      height:25px;
+      margin:0 auto 10px;
+      border:3px solid var(--panel-line);
+      border-top-color:var(--cyan);
+      border-radius:50%;
+      animation:spin .75s linear infinite;
+    }
+
+    .result{
+      display:none;
+      margin-top:25px;
+      border-radius:16px;
+      overflow:hidden;
+      animation:resultIn .35s ease;
+    }
+
+    @keyframes resultIn{
+      from{
+        opacity:0;
+        transform:translateY(10px);
+      }
+      to{
+        opacity:1;
+        transform:none;
+      }
+    }
+
+    .result.valid{
+      display:block;
+      border:1px solid rgba(79,201,122,.4);
+      background:var(--green-soft);
+    }
+
+    .result.invalid,
+    .result.error{
+      display:block;
+      border:1px solid rgba(226,92,92,.42);
+      background:var(--red-soft);
+    }
+
+    .result-head{
+      display:flex;
+      align-items:flex-start;
+      gap:14px;
+      padding:20px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+    }
+
+    .result-icon{
+      width:44px;
+      height:44px;
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-shrink:0;
+      font-size:23px;
+      font-weight:700;
+    }
+
+    .valid .result-icon{
+      color:var(--green);
+      background:rgba(79,201,122,.14);
+    }
+
+    .invalid .result-icon,
+    .error .result-icon{
+      color:var(--red);
+      background:rgba(226,92,92,.14);
+    }
+
+    .result-title{
+      color:var(--text-bright);
+      font-size:18px;
+      margin-bottom:2px;
+    }
+
+    .result-message{
+      color:var(--text-dim);
+      font-size:13.5px;
+    }
+
+    .certificate-details{
+      padding:20px;
+      display:grid;
+      gap:11px;
+    }
+
+    .detail-row{
+      display:grid;
+      grid-template-columns:160px 1fr;
+      gap:16px;
+      align-items:center;
+      padding:13px 15px;
+      background:rgba(10,14,22,.42);
+      border:1px solid rgba(255,255,255,.045);
+      border-radius:10px;
+    }
+
+    .detail-label{
+      color:var(--text-dim);
+      font-size:13px;
+    }
+
+    .detail-value{
+      color:var(--text-bright);
+      font-weight:600;
+      overflow-wrap:anywhere;
+    }
+
+    .detail-value.mono{
+      font-family:var(--mono);
+      direction:ltr;
+      text-align:right;
+    }
+
+    .certificate-status{
+      color:var(--green);
+    }
+
+    .security-note{
+      max-width:760px;
+      margin:20px auto 0;
+      display:flex;
+      gap:13px;
+      align-items:flex-start;
+      padding:17px 19px;
+      color:var(--text-dim);
+      font-size:13px;
+      background:rgba(18,26,40,.58);
+      border:1px solid var(--panel-line);
+      border-radius:14px;
+    }
+
+    .security-note svg{
+      color:var(--gold);
+      flex-shrink:0;
+      margin-top:2px;
+    }
+
+    footer{
+      position:relative;
+      z-index:3;
+      border-top:1px solid var(--panel-line);
+      padding:30px 0;
+      text-align:center;
+      color:var(--text-dim);
+      font-size:12.5px;
+    }
+
+    footer strong{
+      color:var(--text);
+    }
+
+    @media(max-width:650px){
+      .container{
+        width:min(100% - 24px, 1100px);
+      }
+
+      nav .container{
+        width:min(100% - 24px, 1100px);
+      }
+
+      .brand-name{
+        font-size:13px;
+      }
+
+      .nav-status span:last-child{
+        display:none;
+      }
+
+      main{
+        padding-top:115px;
+      }
+
+      .card-body{
+        padding:24px 17px;
+      }
+
+      .input-group{
+        grid-template-columns:1fr;
+      }
+
+      .detail-row{
+        grid-template-columns:1fr;
+        gap:3px;
+      }
+
+      .detail-value.mono{
+        text-align:left;
+      }
+
+      .terminal-title{
+        max-width:170px;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        white-space:nowrap;
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce){
+      *,
+      *::before,
+      *::after{
+        animation-duration:.01ms !important;
+        animation-iteration-count:1 !important;
+        scroll-behavior:auto !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-grid"></div>
+  <div class="noise"></div>
+  <div class="scanlines"></div>
+
+  <nav>
+    <div class="container nav-inner">
+      <a class="brand" href="#" aria-label="الصفحة الرئيسية">
+        <img src="https://a.top4top.io/p_38240pdi01.jpg" alt="شعار Programming & Security">
+        <span class="brand-name">Programming <span>&amp;</span> Security</span>
+      </a>
+
+      <div class="nav-status" aria-live="polite">
+        <span class="status-dot" id="databaseStatusDot"></span>
+        <span id="databaseStatusText">جاري الاتصال بقاعدة الاعتمادات</span>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <div class="container">
+      <section class="hero">
+        <div class="shield-wrap">
+          <div class="shield-ring"></div>
+          <img src="https://a.top4top.io/p_38240pdi01.jpg" alt="شعار التحقق من الشهادات">
+        </div>
+
+        <div class="eyebrow">certificate.verify()</div>
+
+        <h1>تحقق من <span>اعتماد الشهادة</span></h1>
+
+        <p class="lead">
+          أدخل رقم الاعتماد المطبوع على الشهادة للتأكد من صحتها ومعرفة اسم الطالب وتاريخ إصدارها.
+        </p>
+      </section>
+
+      <section class="verify-card" aria-labelledby="verifyTitle">
+        <div class="terminal-bar">
+          <span></span>
+          <span></span>
+          <span></span>
+          <div class="terminal-title">student@programming-security:~/verify</div>
+        </div>
+
+        <div class="card-body">
+          <form id="verifyForm" novalidate>
+            <label class="form-label" id="verifyTitle" for="certificateNumber">
+              رقم اعتماد الشهادة
+            </label>
+
+            <div class="input-group">
+              <input
+                class="certificate-input"
+                type="text"
+                id="certificateNumber"
+                name="certificateNumber"
+                placeholder="2026-7-19-239480"
+                autocomplete="off"
+                spellcheck="false"
+                maxlength="80"
+                required
+              >
+
+              <button class="verify-btn" id="verifyButton" type="submit">
+                <span>تحقق الآن</span>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M10.5 18a7.5 7.5 0 1 1 5.303-2.197L21 21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <p class="hint">
+              مثال:
+              <code>2026-7-19-239480</code>
+            </p>
+          </form>
+
+          <div class="loading-box" id="loadingBox" aria-live="polite">
+            <div class="spinner"></div>
+            <p>جاري البحث داخل سجلات الاعتماد...</p>
+          </div>
+
+          <div class="result" id="resultBox" aria-live="polite">
+            <div class="result-head">
+              <div class="result-icon" id="resultIcon"></div>
+
+              <div>
+                <h2 class="result-title" id="resultTitle"></h2>
+                <p class="result-message" id="resultMessage"></p>
+              </div>
+            </div>
+
+            <div class="certificate-details" id="certificateDetails">
+              <div class="detail-row">
+                <span class="detail-label">رقم الاعتماد</span>
+                <span class="detail-value mono" id="resultNumber"></span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">اسم الطالب</span>
+                <span class="detail-value" id="resultName"></span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">تاريخ إصدار الشهادة</span>
+                <span class="detail-value" id="resultDate"></span>
+              </div>
+
+              <div class="detail-row">
+                <span class="detail-label">حالة الشهادة</span>
+                <span class="detail-value certificate-status">أصلية ومعتمدة ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="security-note">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 3 4.5 6.4v5.1c0 4.7 3.1 7.8 7.5 9.5 4.4-1.7 7.5-4.8 7.5-9.5V6.4L12 3Z" stroke="currentColor" stroke-width="1.8"/>
+          <path d="m9.2 12 1.8 1.8 3.8-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+
+        <p>
+          يتم التحقق من رقم الاعتماد باستخدام السجل الرسمي المنشور من Programming &amp; Security.
+          عدم ظهور الشهادة يعني أن الرقم غير مسجل أو أن المعلومات المدخلة غير صحيحة.
+        </p>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>
+        جميع الحقوق محفوظة © <span id="currentYear"></span>
+        <strong>Programming &amp; Security</strong>
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    /*
+      ==============================================================
+      مهم جداً:
+      غيّر الرابط أدناه إلى رابط RAW لملف .number.txt في مستودع GitHub.
+
+      مثال:
+      https://raw.githubusercontent.com/USERNAME/REPOSITORY/main/.number.txt
+      ==============================================================
+    */
+    const CERTIFICATES_FILE_URL =
+      "https://raw.githubusercontent.com/USERNAME/REPOSITORY/main/.number.txt";
+
+    const form = document.getElementById("verifyForm");
+    const input = document.getElementById("certificateNumber");
+    const button = document.getElementById("verifyButton");
+    const loadingBox = document.getElementById("loadingBox");
+    const resultBox = document.getElementById("resultBox");
+    const certificateDetails = document.getElementById("certificateDetails");
+
+    const resultIcon = document.getElementById("resultIcon");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultMessage = document.getElementById("resultMessage");
+    const resultNumber = document.getElementById("resultNumber");
+    const resultName = document.getElementById("resultName");
+    const resultDate = document.getElementById("resultDate");
+
+    const databaseStatusDot = document.getElementById("databaseStatusDot");
+    const databaseStatusText = document.getElementById("databaseStatusText");
+
+    let certificates = [];
+    let databaseLoaded = false;
+    let databaseError = null;
+
+    document.getElementById("currentYear").textContent =
+      new Date().getFullYear();
+
+    function normalizeCertificateNumber(value) {
+      return String(value || "")
+        .trim()
+        .replace(/\s+/g, "")
+        .toLowerCase();
+    }
+
+    /*
+      التنسيق المدعوم لكل سطر:
+
+      num: 2026-7-19-239480 | name: Ahmed Ali | date: 2026-07-19
+
+      وأيضاً يعمل بدون علامة |:
+
+      num: 2026-7-19-239480 name: Ahmed Ali date: 2026-07-19
+    */
+    function parseCertificatesFile(fileContent) {
+      return fileContent
+        .replace(/^\uFEFF/, "")
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith("#"))
+        .map((line, index) => {
+          const match = line.match(
+            /num\s*:\s*(.*?)\s*(?:\|\s*)?name\s*:\s*(.*?)\s*(?:\|\s*)?date\s*:\s*(.+)$/i
+          );
+
+          if (!match) {
+            console.warn(`تم تجاهل السطر رقم ${index + 1} لأن تنسيقه غير صحيح:`, line);
+            return null;
+          }
+
+          const number = match[1].trim();
+          const name = match[2].trim();
+          const date = match[3].trim();
+
+          if (!number || !name || !date) {
+            return null;
+          }
+
+          return {
+            number,
+            normalizedNumber: normalizeCertificateNumber(number),
+            name,
+            date
+          };
+        })
+        .filter(Boolean);
+    }
+
+    async function loadCertificates() {
+      databaseStatusText.textContent = "جاري الاتصال بقاعدة الاعتمادات";
+      databaseStatusDot.className = "status-dot";
+
+      try {
+        if (
+          CERTIFICATES_FILE_URL.includes("USERNAME") ||
+          CERTIFICATES_FILE_URL.includes("REPOSITORY")
+        ) {
+          throw new Error(
+            "لم يتم تعديل رابط CERTIFICATES_FILE_URL داخل ملف index.html"
+          );
+        }
+
+        const response = await fetch(
+          `${CERTIFICATES_FILE_URL}?cache=${Date.now()}`,
+          { cache: "no-store" }
+        );
+
+        if (!response.ok) {
+          throw new Error(`تعذر تحميل ملف الشهادات. HTTP ${response.status}`);
+        }
+
+        const fileContent = await response.text();
+        certificates = parseCertificatesFile(fileContent);
+
+        if (!certificates.length) {
+          throw new Error(
+            "تم تحميل الملف، لكن لم يتم العثور على سجلات صحيحة داخله."
+          );
+        }
+
+        databaseLoaded = true;
+        databaseError = null;
+        databaseStatusDot.className = "status-dot ready";
+        databaseStatusText.textContent =
+          `قاعدة الاعتمادات متصلة (${certificates.length})`;
+      } catch (error) {
+        databaseLoaded = false;
+        databaseError = error;
+        databaseStatusDot.className = "status-dot error";
+        databaseStatusText.textContent = "تعذر الاتصال بقاعدة الاعتمادات";
+        console.error(error);
+      }
+    }
+
+    function hideResult() {
+      resultBox.className = "result";
+      resultBox.style.display = "none";
+      certificateDetails.style.display = "grid";
+    }
+
+    function showLoading(show) {
+      loadingBox.style.display = show ? "block" : "none";
+      button.disabled = show;
+    }
+
+    function showValidResult(certificate) {
+      resultBox.style.display = "block";
+      resultBox.className = "result valid";
+      certificateDetails.style.display = "grid";
+
+      resultIcon.textContent = "✓";
+      resultTitle.textContent = "تم التحقق من الشهادة";
+      resultMessage.textContent =
+        "تم العثور على رقم الاعتماد داخل السجل الرسمي للشهادات.";
+
+      resultNumber.textContent = certificate.number;
+      resultName.textContent = certificate.name;
+      resultDate.textContent = certificate.date;
+    }
+
+    function showInvalidResult(number) {
+      resultBox.style.display = "block";
+      resultBox.className = "result invalid";
+      certificateDetails.style.display = "none";
+
+      resultIcon.textContent = "×";
+      resultTitle.textContent = "الشهادة غير موجودة";
+      resultMessage.textContent =
+        `لم يتم العثور على رقم الاعتماد "${number}" داخل قاعدة البيانات. تحقق من الرقم وحاول مرة أخرى.`;
+    }
+
+    function showErrorResult(message) {
+      resultBox.style.display = "block";
+      resultBox.className = "result error";
+      certificateDetails.style.display = "none";
+
+      resultIcon.textContent = "!";
+      resultTitle.textContent = "تعذر إجراء عملية التحقق";
+      resultMessage.textContent = message;
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const enteredNumber = input.value.trim();
+      hideResult();
+
+      if (!enteredNumber) {
+        showErrorResult("الرجاء إدخال رقم اعتماد الشهادة أولاً.");
+        input.focus();
+        return;
+      }
+
+      showLoading(true);
+
+      await new Promise(resolve => setTimeout(resolve, 450));
+
+      if (!databaseLoaded) {
+        await loadCertificates();
+      }
+
+      showLoading(false);
+
+      if (!databaseLoaded) {
+        const message = databaseError?.message ||
+          "تعذر الاتصال بملف الاعتمادات. حاول مرة أخرى لاحقاً.";
+
+        showErrorResult(message);
+        return;
+      }
+
+      const normalizedInput = normalizeCertificateNumber(enteredNumber);
+
+      const certificate = certificates.find(
+        item => item.normalizedNumber === normalizedInput
+      );
+
+      if (certificate) {
+        showValidResult(certificate);
+      } else {
+        showInvalidResult(enteredNumber);
+      }
+    });
+
+    input.addEventListener("input", hideResult);
+
+    loadCertificates();
+  </script>
+</body>
+</html>
